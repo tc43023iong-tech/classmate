@@ -22,7 +22,7 @@
                 accent: '#383838'
               },
               poke: {
-                red: '#ff0000',
+                red: '#e11d48', /* Changed from #ff0000 to Rose-600 for softer look */
                 blue: '#3b4cca',
                 yellow: '#ffde00',
                 green: '#4dad5b'
@@ -32,6 +32,8 @@
               'bounce-short': 'bounce 0.5s ease-in-out 1',
               'float-up': 'floatUp 0.8s ease-out forwards',
               'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+              'firework': 'firework 1s ease-out forwards',
+              'rain': 'rain 0.8s linear forwards',
             },
             keyframes: {
               floatUp: {
@@ -43,6 +45,15 @@
                 '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
                 '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
                 '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+              },
+              firework: {
+                '0%': { transform: 'translate(var(--x), var(--y)) scale(0)', opacity: '1' },
+                '100%': { transform: 'translate(var(--final-x), var(--final-y)) scale(1.5)', opacity: '0' }
+              },
+              rain: {
+                '0%': { transform: 'translateY(-20px)', opacity: '0' },
+                '20%': { opacity: '1' },
+                '100%': { transform: 'translateY(200px)', opacity: '0' }
               }
             }
           }

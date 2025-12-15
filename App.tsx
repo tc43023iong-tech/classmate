@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Users, Download, Trash, Bot, Gamepad2, ArrowDownUp } from 'lucide-react';
+import { Users, Download, Trash, Bot, Gamepad2, ArrowDownUp, CircleDot } from 'lucide-react';
 
-import { Student } from './types';
-import { STORAGE_KEY_STUDENTS, TOTAL_POKEMON_AVAILABLE, SOUND_EFFECTS } from './constants';
+import { Student, HistoryLog } from './types';
+import { STORAGE_KEY_STUDENTS, STORAGE_KEY_LOGS, TOTAL_POKEMON_AVAILABLE, SOUND_EFFECTS } from './constants';
 import { generateClassReport, generateEncouragement } from './services/geminiService';
 
 import StudentCard from './components/StudentCard';
@@ -16,6 +16,8 @@ type SortOption = 'id' | 'score-desc' | 'score-asc';
 const App: React.FC = () => {
   // State
   const [students, setStudents] = useState<Student[]>([]);
+  const [logs, setLogs] = useState<HistoryLog[]>([]);
+  
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [avatarSelectorData, setAvatarSelectorData] = useState<{ isOpen: boolean; studentId: string | null }>({
     isOpen: false,
@@ -34,12 +36,22 @@ const App: React.FC = () => {
 
   // Load from Storage
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY_STUDENTS);
-    if (stored) {
+    const storedStudents = localStorage.getItem(STORAGE_KEY_STUDENTS);
+    const storedLogs = localStorage.getItem(STORAGE_KEY_LOGS);
+    
+    if (storedStudents) {
       try {
-        setStudents(JSON.parse(stored));
+        setStudents(JSON.parse(storedStudents));
       } catch (e) {
         console.error("Failed to parse students", e);
+      }
+    }
+    
+    if (storedLogs) {
+      try {
+        setLogs(JSON.parse(storedLogs));
+      } catch (e) {
+        console.error("Failed to parse logs", e);
       }
     }
   }, []);
@@ -48,6 +60,10 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_STUDENTS, JSON.stringify(students));
   }, [students]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logs));
+  }, [logs]);
 
   // Audio Helper
   const playSound = (type: 'positive' | 'negative') => {
@@ -70,13 +86,25 @@ const App: React.FC = () => {
     setStudents((prev) => [...prev, ...newStudents]);
   };
 
-  const handleUpdatePoints = useCallback(async (id: string, newPoints: number) => {
+  const addLog = (studentId: string, studentName: string, amount: number, reason?: string) => {
+    const newLog: HistoryLog = {
+      id: uuidv4(),
+      studentName,
+      amount,
+      timestamp: Date.now(),
+      reason
+    };
+    setLogs(prev => [newLog, ...prev]);
+  };
+
+  const handleUpdatePoints = useCallback(async (id: string, newPoints: number, reason?: string) => {
     setStudents((prev) => {
         const student = prev.find(s => s.id === id);
         if (student) {
+            const delta = newPoints - student.points;
             // Play sound based on delta
-            if (newPoints > student.points) playSound('positive');
-            if (newPoints < student.points) playSound('negative');
+            if (delta > 0) playSound('positive');
+            if (delta < 0) playSound('negative');
         }
         return prev.map(s => s.id === id ? { ...s, points: newPoints } : s);
     });
@@ -92,6 +120,7 @@ const App: React.FC = () => {
     // Use handleUpdatePoints to ensure sound plays
     const newPoints = student.points + points;
     handleUpdatePoints(student.id, newPoints);
+    addLog(student.id, student.name, points, reason);
 
     // AI Trigger for Game Events
     if (process.env.API_KEY) {
@@ -125,6 +154,7 @@ const App: React.FC = () => {
   const handleClearAll = () => {
     if (window.confirm("Are you sure you want to delete all students? This cannot be undone.")) {
       setStudents([]);
+      setLogs([]);
     }
   };
 
@@ -142,7 +172,6 @@ const App: React.FC = () => {
   const sortedStudents = useMemo(() => {
     return [...students].sort((a, b) => {
         if (sortBy === 'id') {
-            // Numeric sort for IDs if they are numbers strings, otherwise string sort
             return a.studentId.localeCompare(b.studentId, undefined, { numeric: true });
         }
         if (sortBy === 'score-desc') return b.points - a.points;
@@ -153,6 +182,7 @@ const App: React.FC = () => {
 
   const totalPoints = students.reduce((acc, s) => acc + s.points, 0);
   const activeStudent = students.find(s => s.id === battleModalData.studentId) || null;
+  const activeLogs = activeStudent ? logs.filter(l => l.studentName === activeStudent.name) : [];
 
   return (
     <div className="min-h-screen pb-20 font-pixel">
@@ -161,15 +191,16 @@ const App: React.FC = () => {
       <header className="sticky top-0 z-30 bg-poke-red border-b-8 border-slate-900 shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center justify-between">
           <div className="flex items-center gap-4">
-             {/* Pokedex Blue Light */}
-             <div className="w-16 h-16 rounded-full bg-blue-400 border-4 border-white shadow-[0_0_10px_rgba(59,130,246,0.5)] relative overflow-hidden flex items-center justify-center">
-                 <div className="absolute top-2 left-3 w-6 h-6 bg-white rounded-full opacity-40 blur-sm"></div>
-                 <div className="animate-pulse-fast w-full h-full bg-blue-300 opacity-0 hover:opacity-20 transition-opacity"></div>
+             {/* New Icon Design */}
+             <div className="relative w-16 h-16 flex items-center justify-center">
+                <div className="absolute inset-0 bg-white rounded-full border-4 border-slate-900 shadow-lg"></div>
+                <div className="absolute top-0 left-0 w-full h-1/2 bg-red-600 rounded-t-full border-b-4 border-slate-900"></div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full border-4 border-slate-900 z-10"></div>
              </div>
              
              {/* Red/Yellow/Green Small Lights */}
              <div className="flex gap-2 self-start mt-2">
-                <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-red-800 shadow-inner"></div>
+                <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-red-800 shadow-inner animate-pulse"></div>
                 <div className="w-4 h-4 rounded-full bg-yellow-400 border-2 border-yellow-700 shadow-inner"></div>
                 <div className="w-4 h-4 rounded-full bg-green-500 border-2 border-green-800 shadow-inner"></div>
              </div>
@@ -301,7 +332,14 @@ const App: React.FC = () => {
             <StudentCard
               key={student.id}
               student={student}
-              onUpdatePoints={handleUpdatePoints}
+              onUpdatePoints={(id, val) => {
+                 const student = students.find(s => s.id === id);
+                 handleUpdatePoints(id, val);
+                 if (student) {
+                    const diff = val - student.points;
+                    addLog(id, student.name, diff, 'Quick Action');
+                 }
+              }}
               onChangeAvatar={handleOpenAvatarSelector}
               onDelete={handleDeleteStudent}
               onOpenBattle={handleOpenBattle}
@@ -328,6 +366,7 @@ const App: React.FC = () => {
         isOpen={battleModalData.isOpen}
         onClose={() => setBattleModalData({ ...battleModalData, isOpen: false })}
         student={activeStudent}
+        logs={activeLogs}
         onApplyBehavior={handleApplyBehavior}
         onSwitchPokemon={handleOpenAvatarSelector}
       />

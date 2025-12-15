@@ -5,8 +5,8 @@ export const STORAGE_KEY_LOGS = 'pokeclass_logs_v1';
 export const getPokemonImage = (id: number) => 
   `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
 
-// Updated to 500 as requested
-export const TOTAL_POKEMON_AVAILABLE = 500; 
+// Updated to 1010 to include Gen 9
+export const TOTAL_POKEMON_AVAILABLE = 1010; 
 
 export const SOUND_EFFECTS = {
   positive: [
