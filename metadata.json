@@ -1,0 +1,5 @@
+{
+  "name": "PokeClass Points",
+  "description": "A gamified classroom management system where students are represented by Pokémon avatars. Features point tracking, bulk import, data persistence, and AI-powered student encouragement.",
+  "requestFramePermissions": []
+}

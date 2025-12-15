@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Miss Iong's Class</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              'pixel': ['"VT323"', 'monospace'],
+              'sans': ['system-ui', 'sans-serif'],
+            },
+            colors: {
+              game: {
+                black: '#202020',
+                white: '#f8f9fa',
+                ui: '#f0f0f4',
+                accent: '#383838'
+              },
+              poke: {
+                red: '#ff0000',
+                blue: '#3b4cca',
+                yellow: '#ffde00',
+                green: '#4dad5b'
+              }
+            },
+            animation: {
+              'bounce-short': 'bounce 0.5s ease-in-out 1',
+              'float-up': 'floatUp 0.8s ease-out forwards',
+              'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+            },
+            keyframes: {
+              floatUp: {
+                '0%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+                '100%': { transform: 'translateY(-40px) scale(1.5)', opacity: '0' },
+              },
+              shake: {
+                '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+              }
+            }
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.33.0",
+    "uuid": "https://esm.sh/uuid@^13.0.0"
+  }
+}
+</script>
+<style>
+  /* Custom Pokemon-style Background Pattern */
+  body {
+    background-color: #f0f8ff;
+    /* Dot matrix pattern */
+    background-image: 
+      radial-gradient(#a5b4fc 2px, transparent 2px),
+      radial-gradient(#a5b4fc 2px, transparent 2px);
+    background-size: 32px 32px;
+    background-position: 0 0, 16px 16px;
+    position: relative;
+  }
+  
+  /* Decorative borders for the screen edges to look like a game console */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background: #202020;
+    z-index: 50;
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background: #202020;
+    z-index: 50;
+  }
+</style>
+</head>
+  <body class="text-slate-900 antialiased font-pixel text-xl selection:bg-poke-yellow selection:text-game-black">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
