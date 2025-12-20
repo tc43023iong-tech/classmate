@@ -30,11 +30,10 @@ export const POSITIVE_BEHAVIORS = [
   { label: "Homework Complete", labelZh: "作業完成", points: 2 },
   { label: "Helped a Friend", labelZh: "幫助同學", points: 3 },
   { label: "Creative Thinking", labelZh: "創意思考", points: 2 },
-  { label: "Perfect Attendance", labelZh: "全勤表現", points: 5 },
   { label: "Good Manners", labelZh: "有禮貌", points: 1 },
   { label: "Clean Desk", labelZh: "桌面整潔", points: 1 },
-  { label: "Teamwork", labelZh: "團隊合作", points: 2 },
   { label: "Speaking English", labelZh: "說英文", points: 2 },
+  { label: "Respect Teacher", labelZh: "尊重容老師", points: 3 },
 ];
 
 export const NEGATIVE_BEHAVIORS = [
