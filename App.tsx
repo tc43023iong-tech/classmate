@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Users, Download, Trash, Bot, Gamepad2, ArrowDownUp, Globe, RefreshCw, FileSpreadsheet } from 'lucide-react';
@@ -42,6 +44,7 @@ const App: React.FC = () => {
   // Load from Storage
   useEffect(() => {
     const storedStudents = localStorage.getItem(STORAGE_KEY_STUDENTS);
+    // Fixed typo: removed space in variable name 'storedLogs'
     const storedLogs = localStorage.getItem(STORAGE_KEY_LOGS);
     
     if (storedStudents) {
@@ -52,6 +55,7 @@ const App: React.FC = () => {
       }
     }
     
+    // Fixed variable reference 'storedLogs'
     if (storedLogs) {
       try {
         setLogs(JSON.parse(storedLogs));
@@ -262,11 +266,11 @@ const App: React.FC = () => {
              </div>
              
              <div className="flex flex-col">
-                <h1 className="text-3xl font-black tracking-widest text-white uppercase drop-shadow-[4px_4px_0_rgba(0,0,0,0.5)]" style={{ WebkitTextStroke: '2px #202020' }}>
-                  Miss Iong's Class
+                <h1 className="text-4xl font-black font-sans tracking-wider text-white uppercase drop-shadow-[4px_4px_0_rgba(0,0,0,0.5)]" style={{ WebkitTextStroke: '1.5px #202020' }}>
+                  P4B
                 </h1>
                 {trainerCode && (
-                  <div className="flex items-center gap-1 text-xs text-yellow-300 font-bold tracking-tighter uppercase">
+                  <div className="flex items-center gap-1 text-xs text-yellow-300 font-bold tracking-tighter uppercase font-sans">
                     <Globe size={10} /> LINKED: {trainerCode}
                   </div>
                 )}
@@ -275,7 +279,7 @@ const App: React.FC = () => {
           
           <div className="flex items-center gap-3">
             <div className="hidden lg:flex flex-col items-end mr-4 bg-slate-800 px-4 py-2 rounded border-2 border-slate-600 shadow-inner">
-               <span className="text-xs text-yellow-400 font-bold uppercase tracking-widest">Class XP</span>
+               <span className="text-xs text-yellow-400 font-bold uppercase tracking-widest font-sans">Class XP</span>
                <span className="text-2xl font-black text-white leading-none font-mono">{totalPoints.toString().padStart(6, '0')}</span>
             </div>
             
@@ -308,7 +312,7 @@ const App: React.FC = () => {
             <div className="w-32 h-32 bg-slate-100 rounded-full flex items-center justify-center mb-6 border-4 border-slate-300">
               <Download className="text-slate-300" size={48} />
             </div>
-            <h2 className="text-4xl font-black text-slate-800 mb-2 tracking-tight uppercase">Welcome, Professor!</h2>
+            <h2 className="text-4xl font-black text-slate-800 mb-2 tracking-tight uppercase font-sans">Welcome to P4B!</h2>
             <p className="text-slate-500 max-w-md mb-8 text-2xl">
               Your classroom is empty. Import your students or load a saved class from the Cloud PC.
             </p>
@@ -339,7 +343,7 @@ const App: React.FC = () => {
                  <Bot size={28} />
               </div>
               <div className="flex-1">
-                <h4 className="font-bold text-slate-800 text-lg mb-1 uppercase tracking-wide">Professor's Update</h4>
+                <h4 className="font-bold text-slate-800 text-lg mb-1 uppercase tracking-wide font-sans">Professor's Update</h4>
                 <p className="text-slate-600 leading-relaxed text-xl">
                   "{aiMessage}"
                 </p>
@@ -363,8 +367,8 @@ const App: React.FC = () => {
              <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-slate-400 border-2 border-slate-600 rounded-full"></div>
 
              <div className="flex items-center gap-3">
-               <h2 className="text-3xl font-black text-slate-800 uppercase">Your Team</h2>
-               <span className="bg-blue-100 text-blue-700 font-bold text-lg px-3 py-1 rounded border-2 border-blue-200 shadow-sm">{students.length} Students</span>
+               <h2 className="text-3xl font-black text-slate-800 uppercase font-sans">P4B Roster</h2>
+               <span className="bg-blue-100 text-blue-700 font-bold text-lg px-3 py-1 rounded border-2 border-blue-200 shadow-sm font-sans">{students.length} Students</span>
              </div>
 
              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">

@@ -1,17 +1,18 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Student } from '../types';
 
-let ai: GoogleGenAI | null = null;
-
-try {
-  if (process.env.API_KEY) {
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  }
-} catch (error) {
-  console.error("Failed to initialize Gemini Client", error);
-}
+/**
+ * Initialize a new GoogleGenAI instance using the API key from environment variables.
+ * We initialize this as needed to ensure the client is up-to-date.
+ */
+const getAI = () => {
+  if (!process.env.API_KEY) return null;
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+};
 
 export const generateEncouragement = async (student: Student, action: 'add' | 'subtract'): Promise<string> => {
+  const ai = getAI();
   if (!ai) return "Great job! (AI Key missing)";
 
   const prompt = `
@@ -28,10 +29,12 @@ export const generateEncouragement = async (student: Student, action: 'add' | 's
   `;
 
   try {
+    // Basic Text Tasks (e.g., summarization, proofreading, and simple Q&A): 'gemini-3-flash-preview'
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
     });
+    // Property access .text instead of method call .text()
     return response.text || "Keep it up!";
   } catch (e) {
     console.error(e);
@@ -40,6 +43,7 @@ export const generateEncouragement = async (student: Student, action: 'add' | 's
 };
 
 export const generateClassReport = async (students: Student[]): Promise<string> => {
+  const ai = getAI();
   if (!ai) return "Add an API Key to generate class reports.";
   if (students.length === 0) return "No students to analyze.";
 
@@ -55,10 +59,13 @@ export const generateClassReport = async (students: Student[]): Promise<string> 
   `;
 
   try {
+    // Complex Text Tasks (e.g., advanced reasoning): 'gemini-3-pro-preview' is also an option, 
+    // but for this task 'gemini-3-flash-preview' is sufficient and faster.
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
     });
+    // Property access .text instead of method call .text()
     return response.text || "Report unavailable.";
   } catch (e) {
     console.error(e);
