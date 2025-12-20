@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Users, Download, Trash, Bot, Gamepad2, ArrowDownUp, Cloud, Globe, Save, RefreshCw } from 'lucide-react';
+import { Users, Download, Trash, Bot, Gamepad2, ArrowDownUp, Globe, RefreshCw, FileSpreadsheet } from 'lucide-react';
 
 import { Student, HistoryLog, CloudSyncData } from './types';
 import { STORAGE_KEY_STUDENTS, STORAGE_KEY_LOGS, TOTAL_POKEMON_AVAILABLE, SOUND_EFFECTS } from './constants';
@@ -11,6 +11,7 @@ import ImportModal from './components/ImportModal';
 import AvatarSelector from './components/AvatarSelector';
 import BattleModal from './components/BattleModal';
 import SyncModal from './components/SyncModal';
+import DataModal from './components/DataModal';
 
 type SortOption = 'id' | 'score-desc' | 'score-asc';
 
@@ -22,6 +23,7 @@ const App: React.FC = () => {
   
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isDataModalOpen, setIsDataModalOpen] = useState(false);
   const [avatarSelectorData, setAvatarSelectorData] = useState<{ isOpen: boolean; studentId: string | null }>({
     isOpen: false,
     studentId: null,
@@ -78,7 +80,7 @@ const App: React.FC = () => {
   };
 
   // Handlers
-  const handleImport = (data: { name: string; studentId: string }[]) => {
+  const handleImportStudents = (data: { name: string; studentId: string }[]) => {
     const newStudents: Student[] = data.map((d) => ({
       id: uuidv4(),
       name: d.name,
@@ -87,6 +89,32 @@ const App: React.FC = () => {
       avatarId: Math.floor(Math.random() * TOTAL_POKEMON_AVAILABLE) + 1, 
     }));
     setStudents((prev) => [...prev, ...newStudents]);
+  };
+
+  const handleImportScores = (data: { studentId: string; points: number }[]) => {
+    setStudents(prev => prev.map(s => {
+      const match = data.find(d => d.studentId === s.studentId);
+      if (match) {
+        addLog(s.id, s.name, match.points - s.points, 'Bulk Score Import');
+        return { ...s, points: match.points };
+      }
+      return s;
+    }));
+  };
+
+  const handleExportScores = () => {
+    const headers = ['Name', 'Student ID', 'Points'];
+    const rows = students.map(s => [s.name, s.studentId, s.points]);
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `class_scores_${new Date().toLocaleDateString()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const addLog = (studentId: string, studentName: string, amount: number, reason?: string) => {
@@ -359,6 +387,15 @@ const App: React.FC = () => {
                <div className="h-8 w-1 bg-slate-300 hidden sm:block mx-2"></div>
 
                <button
+                 onClick={() => setIsDataModalOpen(true)}
+                 className="flex items-center gap-2 px-4 py-2 bg-emerald-100 border-2 border-emerald-300 text-emerald-700 hover:bg-emerald-200 rounded-lg text-xl font-bold transition-all shadow-sm active:translate-y-0.5"
+                 title="Data Center"
+               >
+                 <FileSpreadsheet size={20} />
+                 Admin
+               </button>
+
+               <button
                  onClick={handleAiReport}
                  disabled={isAiGenerating}
                  className="flex items-center gap-2 px-4 py-2 bg-indigo-100 border-2 border-indigo-300 text-indigo-700 hover:bg-indigo-200 rounded-lg text-xl font-bold transition-all shadow-sm active:translate-y-0.5"
@@ -403,7 +440,7 @@ const App: React.FC = () => {
       <ImportModal 
         isOpen={isImportModalOpen} 
         onClose={() => setIsImportModalOpen(false)} 
-        onImport={handleImport} 
+        onImport={handleImportStudents} 
       />
 
       <AvatarSelector
@@ -428,6 +465,13 @@ const App: React.FC = () => {
         trainerCode={trainerCode}
         onSave={handleCloudSave}
         onLoad={handleCloudLoad}
+      />
+
+      <DataModal
+        isOpen={isDataModalOpen}
+        onClose={() => setIsDataModalOpen(false)}
+        onImportScores={handleImportScores}
+        onExportScores={handleExportScores}
       />
 
     </div>
