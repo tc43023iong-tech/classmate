@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Users, Download, Trash, Bot, Gamepad2, ArrowDownUp, CircleDot } from 'lucide-react';
+import { Users, Download, Trash, Bot, Gamepad2, ArrowDownUp, Cloud, Globe, Save, RefreshCw } from 'lucide-react';
 
-import { Student, HistoryLog } from './types';
+import { Student, HistoryLog, CloudSyncData } from './types';
 import { STORAGE_KEY_STUDENTS, STORAGE_KEY_LOGS, TOTAL_POKEMON_AVAILABLE, SOUND_EFFECTS } from './constants';
 import { generateClassReport, generateEncouragement } from './services/geminiService';
 
@@ -10,6 +10,7 @@ import StudentCard from './components/StudentCard';
 import ImportModal from './components/ImportModal';
 import AvatarSelector from './components/AvatarSelector';
 import BattleModal from './components/BattleModal';
+import SyncModal from './components/SyncModal';
 
 type SortOption = 'id' | 'score-desc' | 'score-asc';
 
@@ -17,8 +18,10 @@ const App: React.FC = () => {
   // State
   const [students, setStudents] = useState<Student[]>([]);
   const [logs, setLogs] = useState<HistoryLog[]>([]);
+  const [trainerCode, setTrainerCode] = useState<string | null>(localStorage.getItem('trainer_code'));
   
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [avatarSelectorData, setAvatarSelectorData] = useState<{ isOpen: boolean; studentId: string | null }>({
     isOpen: false,
     studentId: null,
@@ -102,7 +105,6 @@ const App: React.FC = () => {
         const student = prev.find(s => s.id === id);
         if (student) {
             const delta = newPoints - student.points;
-            // Play sound based on delta
             if (delta > 0) playSound('positive');
             if (delta < 0) playSound('negative');
         }
@@ -110,21 +112,16 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // Handle Behavior from Battle Modal
   const handleApplyBehavior = async (points: number, reason: string) => {
     if (!battleModalData.studentId) return;
-    
     const student = students.find(s => s.id === battleModalData.studentId);
     if (!student) return;
 
-    // Use handleUpdatePoints to ensure sound plays
     const newPoints = student.points + points;
     handleUpdatePoints(student.id, newPoints);
     addLog(student.id, student.name, points, reason);
 
-    // AI Trigger for Game Events
     if (process.env.API_KEY) {
-      // 30% chance for commentary on specific behavior
       if (Math.random() > 0.7) {
         const encouragement = await generateEncouragement(student, points > 0 ? 'add' : 'subtract');
         setAiMessage(encouragement);
@@ -169,6 +166,45 @@ const App: React.FC = () => {
     }
   };
 
+  // Cloud Sync Logic
+  const handleCloudSave = async () => {
+    const data: CloudSyncData = { students, logs, version: '1.0' };
+    const method = trainerCode ? 'PUT' : 'POST';
+    const url = trainerCode ? `https://api.npoint.io/${trainerCode}` : `https://api.npoint.io/bins`;
+    
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const result = await res.json();
+      const code = trainerCode || result.id;
+      setTrainerCode(code);
+      localStorage.setItem('trainer_code', code);
+      return code;
+    } catch (e) {
+      console.error("Cloud Save Error", e);
+      throw e;
+    }
+  };
+
+  const handleCloudLoad = async (code: string) => {
+    try {
+      const res = await fetch(`https://api.npoint.io/${code}`);
+      const data: CloudSyncData = await res.json();
+      if (data.students) {
+        setStudents(data.students);
+        setLogs(data.logs || []);
+        setTrainerCode(code);
+        localStorage.setItem('trainer_code', code);
+      }
+    } catch (e) {
+      console.error("Cloud Load Error", e);
+      throw e;
+    }
+  };
+
   const sortedStudents = useMemo(() => {
     return [...students].sort((a, b) => {
         if (sortBy === 'id') {
@@ -191,37 +227,45 @@ const App: React.FC = () => {
       <header className="sticky top-0 z-30 bg-poke-red border-b-8 border-slate-900 shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center justify-between">
           <div className="flex items-center gap-4">
-             {/* New Icon Design */}
-             <div className="relative w-16 h-16 flex items-center justify-center">
+             <div className="relative w-16 h-16 flex items-center justify-center cursor-pointer hover:rotate-180 transition-transform duration-500" onClick={() => setIsSyncModalOpen(true)}>
                 <div className="absolute inset-0 bg-white rounded-full border-4 border-slate-900 shadow-lg"></div>
                 <div className="absolute top-0 left-0 w-full h-1/2 bg-red-600 rounded-t-full border-b-4 border-slate-900"></div>
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full border-4 border-slate-900 z-10"></div>
              </div>
              
-             {/* Red/Yellow/Green Small Lights */}
-             <div className="flex gap-2 self-start mt-2">
-                <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-red-800 shadow-inner animate-pulse"></div>
-                <div className="w-4 h-4 rounded-full bg-yellow-400 border-2 border-yellow-700 shadow-inner"></div>
-                <div className="w-4 h-4 rounded-full bg-green-500 border-2 border-green-800 shadow-inner"></div>
+             <div className="flex flex-col">
+                <h1 className="text-3xl font-black tracking-widest text-white uppercase drop-shadow-[4px_4px_0_rgba(0,0,0,0.5)]" style={{ WebkitTextStroke: '2px #202020' }}>
+                  Miss Iong's Class
+                </h1>
+                {trainerCode && (
+                  <div className="flex items-center gap-1 text-xs text-yellow-300 font-bold tracking-tighter uppercase">
+                    <Globe size={10} /> LINKED: {trainerCode}
+                  </div>
+                )}
              </div>
-
-             <h1 className="text-4xl font-black tracking-widest text-white uppercase drop-shadow-[4px_4px_0_rgba(0,0,0,0.5)] ml-4" style={{ WebkitTextStroke: '2px #202020' }}>
-               Miss Iong's Class
-             </h1>
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="hidden md:flex flex-col items-end mr-4 bg-slate-800 px-4 py-2 rounded border-2 border-slate-600 shadow-inner">
+            <div className="hidden lg:flex flex-col items-end mr-4 bg-slate-800 px-4 py-2 rounded border-2 border-slate-600 shadow-inner">
                <span className="text-xs text-yellow-400 font-bold uppercase tracking-widest">Class XP</span>
                <span className="text-2xl font-black text-white leading-none font-mono">{totalPoints.toString().padStart(6, '0')}</span>
             </div>
             
             <button 
+              onClick={() => setIsSyncModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded border-b-4 border-slate-600 hover:bg-slate-700 transition-all text-xl font-bold active:border-b-0 active:translate-y-1 shadow-lg group"
+              title="Global Sync"
+            >
+              <RefreshCw size={24} className="group-hover:rotate-180 transition-transform duration-500" />
+              <span className="hidden sm:inline uppercase">Sync PC</span>
+            </button>
+
+            <button 
               onClick={() => setIsImportModalOpen(true)}
               className="flex items-center gap-2 px-6 py-2 bg-yellow-400 text-slate-900 rounded border-b-4 border-yellow-700 hover:bg-yellow-300 transition-all text-xl font-bold active:border-b-0 active:translate-y-1 shadow-lg"
             >
               <Users size={24} />
-              <span className="hidden sm:inline">ADD STUDENT</span>
+              <span className="hidden sm:inline">ADD</span>
             </button>
           </div>
         </div>
@@ -238,15 +282,24 @@ const App: React.FC = () => {
             </div>
             <h2 className="text-4xl font-black text-slate-800 mb-2 tracking-tight uppercase">Welcome, Professor!</h2>
             <p className="text-slate-500 max-w-md mb-8 text-2xl">
-              Your classroom is empty. Import your students to begin their Pokémon journey.
+              Your classroom is empty. Import your students or load a saved class from the Cloud PC.
             </p>
-            <button 
-              onClick={() => setIsImportModalOpen(true)}
-              className="px-8 py-4 bg-poke-blue text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-xl border-b-4 border-blue-900 active:border-b-0 active:translate-y-1 flex items-center gap-2 text-2xl"
-            >
-              <Users size={24} />
-              Import Class Roster
-            </button>
+            <div className="flex flex-wrap justify-center gap-4">
+               <button 
+                onClick={() => setIsImportModalOpen(true)}
+                className="px-8 py-4 bg-poke-blue text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-xl border-b-4 border-blue-900 active:border-b-0 active:translate-y-1 flex items-center gap-2 text-2xl"
+              >
+                <Users size={24} />
+                Import Class Roster
+              </button>
+              <button 
+                onClick={() => setIsSyncModalOpen(true)}
+                className="px-8 py-4 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-colors shadow-xl border-b-4 border-slate-600 active:border-b-0 active:translate-y-1 flex items-center gap-2 text-2xl"
+              >
+                <RefreshCw size={24} />
+                PC Global Load
+              </button>
+            </div>
           </div>
         )}
 
@@ -276,7 +329,6 @@ const App: React.FC = () => {
         {/* Toolbar */}
         {students.length > 0 && (
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4 bg-white p-4 rounded-lg shadow-lg border-4 border-slate-700 relative">
-             {/* Decorative corner screws */}
              <div className="absolute -top-2 -left-2 w-4 h-4 bg-slate-400 border-2 border-slate-600 rounded-full"></div>
              <div className="absolute -top-2 -right-2 w-4 h-4 bg-slate-400 border-2 border-slate-600 rounded-full"></div>
              <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-slate-400 border-2 border-slate-600 rounded-full"></div>
@@ -289,7 +341,6 @@ const App: React.FC = () => {
 
              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                
-               {/* Sort Dropdown */}
                <div className="relative group">
                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                     <ArrowDownUp size={16} />
@@ -369,6 +420,14 @@ const App: React.FC = () => {
         logs={activeLogs}
         onApplyBehavior={handleApplyBehavior}
         onSwitchPokemon={handleOpenAvatarSelector}
+      />
+
+      <SyncModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        trainerCode={trainerCode}
+        onSave={handleCloudSave}
+        onLoad={handleCloudLoad}
       />
 
     </div>

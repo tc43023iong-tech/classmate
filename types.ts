@@ -1,9 +1,9 @@
 export interface Student {
   id: string;
   name: string;
-  studentId: string; // The roll number/ID provided by school
+  studentId: string;
   points: number;
-  avatarId: number; // Pokemon Pokedex ID (1-151+)
+  avatarId: number;
 }
 
 export interface HistoryLog {
@@ -12,6 +12,12 @@ export interface HistoryLog {
   amount: number;
   timestamp: number;
   reason?: string;
+}
+
+export interface CloudSyncData {
+  students: Student[];
+  logs: HistoryLog[];
+  version: string;
 }
 
 export interface PokemonData {
