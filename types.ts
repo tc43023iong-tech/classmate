@@ -4,6 +4,7 @@ export interface Student {
   studentId: string;
   points: number;
   avatarId: number;
+  classGroup: string; // 新增：所屬班級/科目名稱
 }
 
 export interface HistoryLog {

@@ -1,27 +1,21 @@
 export const STORAGE_KEY_STUDENTS = 'pokeclass_students_v1';
 export const STORAGE_KEY_LOGS = 'pokeclass_logs_v1';
 
-// Base URL for high-quality official artwork from PokeAPI GitHub
 export const getPokemonImage = (id: number) => 
   `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
 
-// Updated to 1010 to include Gen 9
 export const TOTAL_POKEMON_AVAILABLE = 1010; 
 
 export const SOUND_EFFECTS = {
   positive: [
-    'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3', // Coin
-    'https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3', // Success Chime
-    'https://assets.mixkit.co/active_storage/sfx/605/605-preview.mp3',   // Magic
-    'https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3',  // Checkpoint
-    'https://assets.mixkit.co/active_storage/sfx/270/270-preview.mp3'     // Bubbles
+    'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3',
+    'https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3',
+    'https://assets.mixkit.co/active_storage/sfx/605/605-preview.mp3'
   ],
   negative: [
-    'https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3', // Hit
-    'https://assets.mixkit.co/active_storage/sfx/286/286-preview.mp3',   // Fail Low
-    'https://assets.mixkit.co/active_storage/sfx/2573/2573-preview.mp3', // Retro Error
-    'https://assets.mixkit.co/active_storage/sfx/892/892-preview.mp3',    // Cartoon Splat
-    'https://assets.mixkit.co/active_storage/sfx/2044/2044-preview.mp3'    // Boom
+    'https://assets.mixkit.co/active_storage/sfx/2003/2003-preview.mp3',
+    'https://assets.mixkit.co/active_storage/sfx/286/286-preview.mp3',
+    'https://assets.mixkit.co/active_storage/sfx/2573/2573-preview.mp3'
   ]
 };
 
@@ -44,4 +38,21 @@ export const NEGATIVE_BEHAVIORS = [
   { label: "No Supplies", labelZh: "沒帶用品", points: -1 },
   { label: "Sleeping", labelZh: "上課睡覺", points: -2 },
   { label: "Eating in Class", labelZh: "偷吃東西", points: -1 },
+];
+
+// 學生名單定義
+const LIST_4B = "陳沁儀,陳信豪,周詩蕎,鄭瑩瑩,鄭泓昊,蔣沁妍,甘子賢,關子謙,謝欣晏,黃楚堯,黃翰皓,容毓俊,李可欣,陸皆橋,馬超芸,麥嘉俐,牟智杰,潘思涵,蕭珈睿,黃一進,王美琳,趙梓琳,趙慕辰";
+const LIST_5B = "歐陽卓軒,陳至濠,謝穎琳,鄭智泓,鄭澳因,陳靜妍,陳浩,霍菁,黃羲辰,郭芷晴,林安娜,劉樂澄,李梓樂,李天恩,梁康妮,梁語翹,梁智中,梁賢正,梁伽藍,梁凱嵐,劉一鳴,盧子君,呂建羲,馬梓倫,吳子軒,吳梓浩,吳穎詩,彭賢信,施泓軒,蕭昊恩,蘇健羽,田浩成,唐敏裕,黃浩藍";
+const LIST_4C = "曾子朗,鄭翊翔,陳梓晴,許芝霖,康安娜,胡栩豪,黃璐媛,黃詩皓,嚴穎兒,林晉毅,林雅妍,林寶堅,李凱聰,梁語穎,龍紀潼,盧航俊,盧俊俐,莫芷晴,歐陽健豐,邱佳茵,余樂恆,鍾倬民,鍾倬承";
+const LIST_3B = "陳芷柔,陳沛詩,鄭穎彤,張晉熙,朱善恆,馮子陽,傅玥寧,高宇皓,何梓瑤,何金霏,何冠奇,黃欣彤,黎芷楹,黎子滔,林子洋,林曉棟,雷翊權,李祤軒,梁子泓,梁皓宸,梁依晴,廖巧澄,駱峻霆,伍嘉豪,蕭家軒,譚灝楊,丁子皓,黃芊諭,王美樂,許君豪,周海嵐,朱麗媛";
+
+// 預設班級資料 - 已調整為從小到大排序 (3 -> 4 -> 5)
+export const PRESET_CLASSES = [
+  { name: "三乙 英文", students: LIST_3B },
+  { name: "三乙 普通話", students: LIST_3B },
+  { name: "四乙 普通話", students: LIST_4B },
+  { name: "四乙 英文", students: LIST_4B },
+  { name: "四丙 普通話", students: LIST_4C },
+  { name: "四丙 公民", students: LIST_4C },
+  { name: "五乙 普通話", students: LIST_5B }
 ];
