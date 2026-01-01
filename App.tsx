@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Bot, Gamepad2, ArrowDownUp, Globe, RefreshCw, FileSpreadsheet, LayoutGrid, UserCheck, Cloud, CloudOff, Wifi, Link, X, Sparkles } from 'lucide-react';
+import { Bot, Gamepad2, ArrowDownUp, RefreshCw, FileSpreadsheet, LayoutGrid, UserCheck, Cloud, CloudOff, Wifi, Link, X, Sparkles } from 'lucide-react';
 
 import { Student, HistoryLog, CloudSyncData } from './types';
 import { STORAGE_KEY_STUDENTS, STORAGE_KEY_LOGS, TOTAL_POKEMON_AVAILABLE, SOUND_EFFECTS, PRESET_CLASSES } from './constants';
@@ -15,15 +14,13 @@ import DataModal from './components/DataModal';
 
 type SortOption = 'id' | 'score-desc' | 'score-asc';
 
-const App: React.FC = () => {
-  // 1. 從網址讀取同步代碼 (e.g. ?code=MISSIONG)
-  const queryParams = new URLSearchParams(window.location.search);
-  const urlCode = queryParams.get('code');
+// --- 全局固定同步代碼 (容老師專屬) ---
+// 只要使用這個 ID，全世界任何電腦打開這個網頁都會看到同一份名單
+const MASTER_SYNC_ID = 'Miss_Iong_PokeClass_Master_v2'; 
 
-  // State
+const App: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [logs, setLogs] = useState<HistoryLog[]>([]);
-  const [trainerCode, setTrainerCode] = useState<string | null>(urlCode || localStorage.getItem('trainer_code'));
   const [currentClass, setCurrentClass] = useState<string>(PRESET_CLASSES[0].name);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('offline');
   
@@ -44,10 +41,10 @@ const App: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortOption>('id');
 
   const lastSyncTime = useRef<number>(0);
-  const isInitialMount = useRef(true);
+  const isInitialLoadDone = useRef(false);
 
-  // 初始化預設名單（無雲端資料時的後備）
-  const initDefaultData = useCallback(() => {
+  // 1. 初始化預設名單
+  const getInitialDefaultStudents = useCallback(() => {
     const allStudents: Student[] = [];
     PRESET_CLASSES.forEach(preset => {
       const names = preset.students.split(',');
@@ -62,94 +59,81 @@ const App: React.FC = () => {
         });
       });
     });
-    setStudents(allStudents);
+    return allStudents;
   }, []);
 
-  // 雲端儲存
-  const saveToCloud = useCallback(async (currentStudents: Student[], currentLogs: HistoryLog[], code: string) => {
-    if (!code) return;
+  // 2. 雲端儲存函式
+  const saveToCloud = useCallback(async (currentStudents: Student[], currentLogs: HistoryLog[]) => {
+    if (currentStudents.length === 0) return;
     setSyncStatus('syncing');
     try {
-      const data: CloudSyncData = { students: currentStudents, logs: currentLogs, version: '1.2' };
-      await fetch(`https://api.npoint.io/${code}`, {
+      const data: CloudSyncData = { students: currentStudents, logs: currentLogs, version: '2.0' };
+      const response = await fetch(`https://api.npoint.io/${MASTER_SYNC_ID}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      setSyncStatus('synced');
+      if (response.ok) setSyncStatus('synced');
     } catch (e) {
+      console.error("Cloud Save Error:", e);
       setSyncStatus('offline');
     }
   }, []);
 
-  // 雲端讀取
-  const loadFromCloud = useCallback(async (code: string) => {
-    if (!code) return;
+  // 3. 雲端讀取函式
+  const loadFromCloud = useCallback(async () => {
     setSyncStatus('syncing');
     try {
-      const res = await fetch(`https://api.npoint.io/${code}`);
-      if (!res.ok) throw new Error("Not Found");
+      const res = await fetch(`https://api.npoint.io/${MASTER_SYNC_ID}`);
+      if (!res.ok) {
+        // 如果雲端還沒有資料 (404)，則初始化並上傳
+        if (res.status === 404 && !isInitialLoadDone.current) {
+          console.log("Initializing first-time cloud data...");
+          const defaults = getInitialDefaultStudents();
+          setStudents(defaults);
+          await saveToCloud(defaults, []);
+        }
+        throw new Error("No data yet");
+      }
       const data: CloudSyncData = await res.json();
-      if (data.students) {
+      if (data.students && data.students.length > 0) {
         setStudents(data.students);
         setLogs(data.logs || []);
         setSyncStatus('synced');
-        // 同步成功後存入本地 localStorage，這樣下次打開這台電腦就不需要 URL 了
-        localStorage.setItem('trainer_code', code);
       }
     } catch (e) {
+      console.warn("Cloud load failed, using local/default.");
       setSyncStatus('offline');
+    } finally {
+      isInitialLoadDone.current = true;
     }
-  }, []);
+  }, [getInitialDefaultStudents, saveToCloud]);
 
-  // 初始掛載：如果有代碼則加載雲端，沒有則顯示預設並提示連線
+  // 4. 啟動：立刻嘗試從雲端抓資料
   useEffect(() => {
-    if (trainerCode) {
-      loadFromCloud(trainerCode);
-    } else {
-      initDefaultData();
-      // 如果完全沒有代碼，提示用戶需要同步
-      setTimeout(() => setIsSyncModalOpen(true), 1000);
-    }
-  }, []);
-
-  // 自動同步循環 (每 10 秒抓取一次最新分數)
-  useEffect(() => {
-    if (!trainerCode) return;
+    loadFromCloud();
+    
+    // 每 15 秒背景檢查一次是否有其他電腦更新了分數
     const interval = setInterval(() => {
-      // 只有在最近 5 秒內沒有點擊操作時才更新，避免覆蓋掉正在加分的動作
+      // 只有在最近 5 秒內沒有點擊操作時才更新，避免打斷老師當前的加分動作
       if (Date.now() - lastSyncTime.current > 5000) {
-        loadFromCloud(trainerCode);
+        loadFromCloud();
       }
-    }, 10000);
+    }, 15000);
+    
     return () => clearInterval(interval);
-  }, [trainerCode, loadFromCloud]);
+  }, [loadFromCloud]);
 
-  // 分數變動自動儲存
+  // 5. 資料變動：自動儲存到雲端
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    if (trainerCode) {
-      const timeoutId = setTimeout(() => {
-        saveToCloud(students, logs, trainerCode);
-      }, 1000);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [students, logs, trainerCode, saveToCloud]);
-
-  // 複製分享連結
-  const copyShareLink = () => {
-    if (trainerCode) {
-      const url = new URL(window.location.href);
-      url.searchParams.set('code', trainerCode);
-      navigator.clipboard.writeText(url.toString());
-      alert("✅ 分享連結已複製！在其他電腦打開此網址即可自動同步分數。");
-    } else {
-      setIsSyncModalOpen(true);
-    }
-  };
+    if (!isInitialLoadDone.current || students.length === 0) return;
+    
+    const timeoutId = setTimeout(() => {
+      saveToCloud(students, logs);
+    }, 1500); // 延遲儲存，避免短時間內頻繁請求
+    
+    return () => clearTimeout(timeoutId);
+  }, [students, logs, saveToCloud]);
 
   const classList = useMemo(() => PRESET_CLASSES.map(p => p.name), []);
 
@@ -157,14 +141,12 @@ const App: React.FC = () => {
     lastSyncTime.current = Date.now();
     setStudents((prev) => prev.map(s => s.id === id ? { ...s, points: newPoints } : s));
     
-    // 播放音效
     const student = students.find(s => s.id === id);
     if (student) {
         const delta = newPoints - student.points;
         const soundType = delta > 0 ? 'positive' : 'negative';
-        const soundArray = SOUND_EFFECTS[soundType];
-        const audio = new Audio(soundArray[Math.floor(Math.random() * soundArray.length)]);
-        audio.volume = 0.4;
+        const audio = new Audio(SOUND_EFFECTS[soundType][0]);
+        audio.volume = 0.3;
         audio.play().catch(() => {});
     }
   }, [students]);
@@ -174,9 +156,6 @@ const App: React.FC = () => {
     setLogs(prev => [newLog, ...prev]);
   };
 
-  /**
-   * Defined handleApplyBehavior to include AI encouragement generation.
-   */
   const handleApplyBehavior = async (points: number, reason: string) => {
     if (!battleModalData.studentId) return;
     const student = students.find(s => s.id === battleModalData.studentId);
@@ -185,31 +164,21 @@ const App: React.FC = () => {
     handleUpdatePoints(student.id, student.points + points);
     addLog(student.id, student.name, points, reason);
 
-    // Get AI encouragement after applying points
     setIsAiGenerating(true);
     try {
       const encouragement = await generateEncouragement(student, points > 0 ? 'add' : 'subtract');
       setAiMessage(encouragement);
-    } catch (e) {
-      console.error("AI Encouragement Error:", e);
     } finally {
       setIsAiGenerating(false);
     }
   };
 
-  /**
-   * Defined handleAiReport to generate a class summary using Gemini API.
-   * Fixes error on line 286.
-   */
   const handleAiReport = async () => {
     if (filteredStudents.length === 0) return;
     setIsAiGenerating(true);
     try {
       const report = await generateClassReport(filteredStudents);
       setAiMessage(report);
-    } catch (e) {
-      console.error("AI Report Error:", e);
-      setAiMessage("Could not generate report. Please try again.");
     } finally {
       setIsAiGenerating(false);
     }
@@ -226,14 +195,12 @@ const App: React.FC = () => {
       });
   }, [students, sortBy, currentClass]);
 
-  const totalPoints = filteredStudents.reduce((acc, s) => acc + s.points, 0);
-
   return (
     <div className="min-h-screen pb-20 font-pixel">
       <header className="sticky top-0 z-30 bg-poke-red border-b-8 border-slate-900 shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center justify-between">
           <div className="flex items-center gap-4">
-             <div className="relative w-16 h-16 flex items-center justify-center cursor-pointer hover:rotate-180 transition-transform duration-500" onClick={() => setIsSyncModalOpen(true)}>
+             <div className="relative w-16 h-16 flex items-center justify-center cursor-pointer hover:rotate-180 transition-transform duration-500">
                 <div className="absolute inset-0 bg-white rounded-full border-4 border-slate-900 shadow-lg"></div>
                 <div className="absolute top-0 left-0 w-full h-1/2 bg-red-600 rounded-t-full border-b-4 border-slate-900"></div>
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full border-4 border-slate-900 z-10"></div>
@@ -244,60 +211,34 @@ const App: React.FC = () => {
                   Miss Iong's Classes
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
-                  {trainerCode ? (
-                    <div className={`flex items-center gap-1 text-[10px] font-bold tracking-tighter uppercase font-sans px-2 py-0.5 rounded ${syncStatus === 'synced' ? 'bg-green-500 text-white' : 'bg-yellow-400 text-slate-900'}`}>
-                      {syncStatus === 'synced' ? <Cloud size={10} /> : <RefreshCw size={10} className="animate-spin" />}
-                      LIVE: {trainerCode}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 text-[10px] bg-slate-800 text-yellow-500 font-bold tracking-tighter uppercase font-sans px-2 py-0.5 rounded border border-yellow-500/30">
-                      <CloudOff size={10} /> Not Synced (Offline)
-                    </div>
-                  )}
+                  <div className={`flex items-center gap-1 text-[10px] font-bold tracking-tighter uppercase font-sans px-2 py-0.5 rounded ${syncStatus === 'synced' ? 'bg-green-500 text-white' : syncStatus === 'syncing' ? 'bg-yellow-400 text-slate-900' : 'bg-red-500 text-white'}`}>
+                    {syncStatus === 'synced' ? <Cloud size={10} /> : <RefreshCw size={10} className="animate-spin" />}
+                    {syncStatus === 'synced' ? 'Auto-Synced (Cloud Active)' : 'Connecting...'}
+                  </div>
                 </div>
              </div>
           </div>
           
           <div className="flex items-center gap-3">
-            {trainerCode && (
-              <button 
-                onClick={copyShareLink}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded border-b-4 border-blue-900 hover:bg-blue-500 transition-all text-xl font-bold active:border-b-0 active:translate-y-1 shadow-lg"
-              >
-                <Link size={20} />
-                <span className="hidden sm:inline">SHARE LINK</span>
-              </button>
-            )}
-            
             <button 
-              onClick={() => setIsSyncModalOpen(true)}
-              className={`flex items-center gap-2 px-4 py-2 rounded border-b-4 transition-all text-xl font-bold active:border-b-0 active:translate-y-1 shadow-lg ${trainerCode ? 'bg-green-600 text-white border-green-900' : 'bg-yellow-500 text-slate-900 border-yellow-700'}`}
+              onClick={() => loadFromCloud()}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded border-b-4 border-black hover:bg-slate-700 transition-all text-xl font-bold active:border-b-0 active:translate-y-1 shadow-lg"
             >
-              <Wifi size={24} />
-              <span className="hidden sm:inline uppercase">{trainerCode ? 'CONNECTED' : 'CONNECT CLOUD'}</span>
+              <RefreshCw size={20} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">FORCE REFRESH</span>
             </button>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Added AI Message Banner UI */}
         {aiMessage && (
           <div className="mb-8 p-6 bg-indigo-50 border-4 border-indigo-200 rounded-xl relative shadow-md animate-in fade-in slide-in-from-top-4">
-            <button 
-              onClick={() => setAiMessage(null)}
-              className="absolute top-4 right-4 text-indigo-400 hover:text-indigo-600 transition-colors"
-            >
-              <X size={24} />
-            </button>
+            <button onClick={() => setAiMessage(null)} className="absolute top-4 right-4 text-indigo-400 hover:text-indigo-600"><X size={24} /></button>
             <div className="flex gap-4 items-start">
-              <div className="bg-indigo-600 p-3 rounded-xl text-white shadow-lg">
-                <Bot size={32} />
-              </div>
+              <div className="bg-indigo-600 p-3 rounded-xl text-white shadow-lg"><Bot size={32} /></div>
               <div>
-                <h4 className="font-black text-indigo-900 uppercase text-lg mb-1 tracking-widest flex items-center gap-2">
-                  Professor's Message <Sparkles size={18} className="text-yellow-500" />
-                </h4>
+                <h4 className="font-black text-indigo-900 uppercase text-lg mb-1 tracking-widest flex items-center gap-2">Professor's Message <Sparkles size={18} className="text-yellow-500" /></h4>
                 <p className="text-indigo-800 text-xl leading-relaxed italic">"{aiMessage}"</p>
               </div>
             </div>
@@ -337,14 +278,8 @@ const App: React.FC = () => {
                  <option value="score-desc">Top Score</option>
                  <option value="score-asc">Low Score</option>
                </select>
-
                <button onClick={() => setIsDataModalOpen(true)} className="px-4 py-2 bg-emerald-100 border-2 border-emerald-300 text-emerald-700 rounded-lg text-xl font-bold hover:bg-emerald-200 transition-all"><FileSpreadsheet size={20} /></button>
-               {/* Fixed missing handleAiReport and added loading state */}
-               <button 
-                 onClick={handleAiReport} 
-                 disabled={isAiGenerating}
-                 className="px-4 py-2 bg-indigo-100 border-2 border-indigo-300 text-indigo-700 rounded-lg text-xl font-bold hover:bg-indigo-200 transition-all disabled:opacity-50"
-               >
+               <button onClick={handleAiReport} disabled={isAiGenerating} className="px-4 py-2 bg-indigo-100 border-2 border-indigo-300 text-indigo-700 rounded-lg text-xl font-bold hover:bg-indigo-200 transition-all disabled:opacity-50">
                  {isAiGenerating ? <RefreshCw size={20} className="animate-spin" /> : <Bot size={20} />}
                </button>
              </div>
@@ -363,24 +298,6 @@ const App: React.FC = () => {
           ))}
         </div>
       </main>
-
-      <SyncModal
-        isOpen={isSyncModalOpen}
-        onClose={() => setIsSyncModalOpen(false)}
-        trainerCode={trainerCode}
-        onSave={async () => {
-            const code = trainerCode || uuidv4().slice(0, 8).toUpperCase();
-            await saveToCloud(students, logs, code);
-            setTrainerCode(code);
-            localStorage.setItem('trainer_code', code);
-            return code;
-        }}
-        onLoad={async (code) => {
-            await loadFromCloud(code);
-            setTrainerCode(code);
-            localStorage.setItem('trainer_code', code);
-        }}
-      />
 
       <BattleModal
         isOpen={battleModalData.isOpen}
